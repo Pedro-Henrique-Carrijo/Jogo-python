@@ -33,41 +33,69 @@ clock = pygame.time.Clock()
 class Sonic:
     def __init__(self):
         self.x = 100
-        self.y = 350
+        self.y = 350  # Posição inicial do Sonic no chão
         self.speed = 10
         self.image = sonic_img
+        self.velocidade_pulo = 0
+        self.no_chao = True  # Indica se o Sonic está no chão
 
     def draw(self):
         tela.blit(self.image, (self.x, self.y))
-
+    
     def move(self, dx, dy):
+        """Move Sonic apenas horizontalmente, já que ele não pode flutuar verticalmente com as setas"""
         self.x += dx * self.speed
-        self.y += dy * self.speed
         self.x = max(0, min(self.x, 800 - self.image.get_width()))
-        self.y = max(0, min(self.y, 600 - self.image.get_height()))
+
+    def pular(self):
+        """Sonic só pode pular se estiver no chão"""
+        if self.no_chao:
+            self.velocidade_pulo = -15  # Força do pulo
+            self.no_chao = False
+    
+    def gravidade(self):
+        """Aplica a gravidade ao Sonic para que ele caia de volta ao chão"""
+        if not self.no_chao:
+            self.velocidade_pulo += 1  # Aceleração da gravidade
+            self.y += self.velocidade_pulo
+
+            # Se o Sonic atingir o chão, ele para de cair
+            if self.y >= 350:  # Ajuste do chão fixo
+                self.y = 350
+                self.no_chao = True
+                self.velocidade_pulo = 0
 
 class Vilao:
     def __init__(self):
-        self.x = random.randint(200, 700)
-        self.y = random.randint(100, 500)
-        self.speed = 5
-        self.image = vilao_img
-        self.direction = random.choice([-1, 1])
+        self.x = 600  # Posição fixa do vilão
+        self.y = 350  # Posição fixa do vilão
+        self.image = pygame.transform.scale(vilao_img, (sonic_img.get_width(), sonic_img.get_height()))  # Redimensiona a imagem do vilão
 
     def draw(self):
         tela.blit(self.image, (self.x, self.y))
-
-    def move(self):
-        self.x += self.speed * self.direction
-        if self.x <= 0 or self.x >= 800 - self.image.get_width():
-            self.direction *= -1
+    
+    # Remover o movimento do vilão
+    # A função move() foi removida, já que o vilão não se move
 
 def colidiu(obj1, obj2):
     return obj1.x < obj2.x + obj2.image.get_width() and obj1.x + obj1.image.get_width() > obj2.x \
-           and obj1.y < obj2.y + obj2.image.get_height() and obj1.y + obj1.image.get_height() > obj2.y
+        and obj1.y < obj2.y + obj2.image.get_height() and obj1.y + obj1.image.get_height() > obj2.y
+
+# Sombra do Sonic
+class Shadow:
+    def __init__(self):
+        self.x = sonic.x
+        self.y = 350  # A sombra sempre vai ficar na mesma posição do chão, onde o Sonic deve estar
+
+    def draw(self):
+        sombra_img = pygame.Surface((sonic_img.get_width(), sonic_img.get_height() // 4))  # Fazendo uma sombra simples
+        sombra_img.fill((0, 0, 0))  # Cor preta para a sombra
+        sombra_img.set_alpha(100)  # Transparência para a sombra
+        tela.blit(sombra_img, (self.x, self.y + 20))  # Desenha a sombra um pouco abaixo do Sonic
 
 sonic = Sonic()
 vilao = Vilao()
+shadow = Shadow()
 
 executando = True
 
@@ -75,21 +103,21 @@ while executando:
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             executando = False
+        if evento.type == pygame.KEYDOWN:
+            if evento.key == pygame.K_SPACE:  # O Sonic pula quando a tecla de espaço é pressionada
+                sonic.pular()
 
     keys = pygame.key.get_pressed()
     dx = dy = 0
-    if keys[pygame.K_UP]:
-        dy = -1
-    elif keys[pygame.K_DOWN]:
-        dy = 1
+    
+    # Movimento horizontal com as setas
     if keys[pygame.K_LEFT]:
         dx = -1
     elif keys[pygame.K_RIGHT]:
         dx = 1
     sonic.move(dx, dy)
-
-
-    vilao.move()
+    
+    sonic.gravidade()  # A gravidade afeta o Sonic
 
     if colidiu(sonic, vilao):
         print("Game Over! Sonic colidiu com o vilão.")
@@ -98,8 +126,9 @@ while executando:
     score += 1
 
     tela.blit(fundo, (0, 0))
+    shadow.draw()  # Desenha a sombra do Sonic
     sonic.draw()
-    vilao.draw()
+    vilao.draw()  # O vilão não se move, ele é desenhado na posição fixa
 
     font = pygame.font.Font(None, 36)
     score_text = font.render(f"Score: {score}", True, (255, 255, 255))
